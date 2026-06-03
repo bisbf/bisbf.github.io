@@ -124,10 +124,10 @@ function saveLocalStorage(data) {
 }
 
 async function fetchJson(url, options = {}) {
-  const allowNotFound = options.allowNotFound || false;
+  const { allowNotFound = false, ...fetchOptions } = options;
   const response = await fetch(url, {
     headers: { "Content-Type": "application/json" },
-    ...options,
+    ...fetchOptions,
   });
   const text = await response.text();
   if (!response.ok) {
@@ -155,7 +155,7 @@ async function loadRemoteStorage() {
       nextCommentId: Number(data.nextCommentId) || 1,
     };
   } catch (err) {
-    console.warn("Remote sync failed, using local data", err);
+    console.error("Remote sync error:", err.message);
     return loadLocalStorage();
   }
 }
