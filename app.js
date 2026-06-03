@@ -44,6 +44,7 @@ const state = {
   selectedId: null,
   category: "all",
   search: "",
+  currentProfile: null,
 };
 
 const els = {
@@ -67,6 +68,26 @@ const els = {
   statThreads: document.querySelector("#statThreads"),
   statReplies: document.querySelector("#statReplies"),
   postImagePreview: document.querySelector("#postImagePreview"),
+  profileButton: document.querySelector("#profileButton"),
+  profileAvatar: document.querySelector("#profileAvatar"),
+  profileName: document.querySelector("#profileName"),
+  profileEditor: document.querySelector("#profileEditor"),
+  profileForm: document.querySelector("#profileForm"),
+  profileInputName: document.querySelector("#profileInputName"),
+  profileImageUpload: document.querySelector("#profileImageUpload"),
+  profilePreview: document.querySelector("#profilePreview"),
+  profileFromGiphy: document.querySelector("#profileFromGiphy"),
+  profileNameAnimation: document.querySelector("#profileNameAnimation"),
+  profileGlowColor: document.querySelector("#profileGlowColor"),
+  profileError: document.querySelector("#profileError"),
+  closeProfile: document.querySelector("#closeProfile"),
+  cancelProfile: document.querySelector("#cancelProfile"),
+  giphySearch: document.querySelector("#giphySearch"),
+  giphySearchInput: document.querySelector("#giphySearchInput"),
+  giphyResults: document.querySelector("#giphyResults"),
+  closeGiphy: document.querySelector("#closeGiphy"),
+  notificationToast: document.querySelector("#notificationToast"),
+  notificationMessage: document.querySelector("#notificationMessage"),
 };
 
 function formatDate(ms) {
@@ -104,7 +125,7 @@ function avatarText(name) {
 function loadLocalStorage() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) {
-    return { posts: [], comments: [], nextPostId: 1, nextCommentId: 1 };
+    return { posts: [], comments: [], nextPostId: 1, nextCommentId: 1, profiles: {} };
   }
   try {
     const parsed = JSON.parse(raw);
@@ -113,9 +134,10 @@ function loadLocalStorage() {
       comments: Array.isArray(parsed.comments) ? parsed.comments : [],
       nextPostId: Number(parsed.nextPostId) || 1,
       nextCommentId: Number(parsed.nextCommentId) || 1,
+      profiles: typeof parsed.profiles === 'object' && parsed.profiles ? parsed.profiles : {},
     };
   } catch {
-    return { posts: [], comments: [], nextPostId: 1, nextCommentId: 1 };
+    return { posts: [], comments: [], nextPostId: 1, nextCommentId: 1, profiles: {} };
   }
 }
 
@@ -182,6 +204,7 @@ async function saveRemoteStorage(data) {
 
 async function loadStorageData() {
   const data = await loadRemoteStorage();
+  if (!data.profiles) data.profiles = {};
   saveLocalStorage(data);
   return data;
 }
@@ -215,6 +238,114 @@ function clean_image(value) {
     return "";
   }
   return value;
+}
+
+function showNotification(message, duration = 3000) {
+  els.notificationMessage.textContent = message;
+  els.notificationToast.hidden = false;
+  window.setTimeout(() => {
+    els.notificationToast.hidden = true;
+  }, duration);
+}
+
+async function getProfiles() {
+  const storage = await loadStorageData();
+  return storage.profiles || {};
+}
+
+async function saveProfiles(profiles) {
+  const storage = await loadStorageData();
+  storage.profiles = profiles;
+  await saveRemoteStorage(storage);
+}
+
+async function getOrCreateProfile(name) {
+  if (!name) return null;
+  const profiles = await getProfiles();
+  if (!profiles[name]) {
+    profiles[name] = {
+      name,
+      avatar: "",
+      frame: "glow",
+      nameAnimation: "glow",
+      glowColor: "#ff00ff",
+    };
+    await saveProfiles(profiles);
+    showNotification("Profile created! Check it out");
+  }
+  return profiles[name];
+}
+
+async function updateProfile(name, updates) {
+  const profiles = await getProfiles();
+  if (!profiles[name]) {
+    profiles[name] = { name };
+  }
+  profiles[name] = { ...profiles[name], ...updates };
+  await saveProfiles(profiles);
+  showNotification("Profile saved!");
+  state.currentProfile = profiles[name];
+  renderProfileButton();
+}
+
+function renderProfileButton() {
+  if (!state.currentProfile || !state.currentProfile.avatar) {
+    els.profileButton.hidden = true;
+    return;
+  }
+  els.profileButton.hidden = false;
+  els.profileAvatar.src = state.currentProfile.avatar;
+  els.profileName.textContent = state.currentProfile.name;
+  applyProfileFrame();
+}
+
+function applyProfileFrame() {
+  if (!state.currentProfile) return;
+  const { frame, nameAnimation, glowColor } = state.currentProfile;
+  els.profileName.className = `profile-name animation-${nameAnimation}`;
+  els.profileName.style.textShadow = `0 0 10px ${glowColor}, 0 0 20px ${glowColor}`;
+}
+
+async function searchGiphy(query) {
+  if (!query) {
+    els.giphyResults.innerHTML = "";
+    return;
+  }
+
+  const GIPHY_API_KEY = "qxIfKRiAotWJyEhQhHi8yXYDfAJLfxW3";
+  const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=16&rating=g`;
+
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    els.giphyResults.innerHTML = "";
+
+    if (data.data && data.data.length > 0) {
+      for (const gif of data.data) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "giphy-result";
+        btn.innerHTML = `<img src="${gif.images.fixed_height.url}" alt="${gif.title}" />`;
+        btn.addEventListener("click", () => {
+          selectGiphyGif(gif.images.fixed_height.url);
+        });
+        els.giphyResults.append(btn);
+      }
+    } else {
+      els.giphyResults.textContent = "No GIFs found";
+    }
+  } catch (err) {
+    els.giphyResults.textContent = "Search failed";
+    console.error("Giphy search error:", err);
+  }
+}
+
+function selectGiphyGif(url) {
+  els.profilePreview.src = url;
+  els.profilePreview.hidden = false;
+  els.profileImageUpload.value = "";
+  els.giphySearch.close();
+  els.profileForm.dataset.avatarUrl = url;
 }
 
 function getPostById(postId, storage) {
@@ -273,9 +404,14 @@ async function createPost(body) {
   storage.posts.push(post);
   storage.nextPostId += 1;
   await saveRemoteStorage(storage);
+  
+  if (author !== "Anonymous") {
+    localStorage.setItem("currentUserName", author);
+    await getOrCreateProfile(author);
+  }
+  
   return { post, comments: [] };
 }
-
 async function createComment(postId, body) {
   const storage = await loadStorageData();
   const author = clean_text(body.author, 60) || "Anonymous";
@@ -649,6 +785,96 @@ els.postForm.addEventListener("submit", async (event) => {
   }
 });
 
+// Profile event listeners
+els.profileButton.addEventListener("click", async () => {
+  if (!state.currentProfile) return;
+  els.profileInputName.value = state.currentProfile.name;
+  els.profilePreview.hidden = true;
+  els.profilePreview.removeAttribute("src");
+  els.profileNameAnimation.value = state.currentProfile.nameAnimation || "glow";
+  els.profileGlowColor.value = state.currentProfile.glowColor || "#ff00ff";
+  document.querySelectorAll(".frame-option").forEach((btn) => {
+    btn.classList.toggle("selected", btn.dataset.frame === (state.currentProfile.frame || "glow"));
+  });
+  els.profileEditor.showModal();
+});
+
+els.closeProfile.addEventListener("click", () => els.profileEditor.close());
+els.cancelProfile.addEventListener("click", () => els.profileEditor.close());
+
+document.querySelectorAll(".frame-option").forEach((btn) => {
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    document.querySelectorAll(".frame-option").forEach((b) => b.classList.remove("selected"));
+    btn.classList.add("selected");
+    els.profileForm.dataset.frame = btn.dataset.frame;
+  });
+});
+
+els.profileImageUpload.addEventListener("change", async () => {
+  const file = els.profileImageUpload.files?.[0];
+  if (!file) return;
+  if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type)) {
+    showNotification("Image must be PNG, JPEG, WebP, or GIF");
+    return;
+  }
+  if (file.size > 2_000_000) {
+    showNotification("Image must be under 2 MB");
+    return;
+  }
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    els.profilePreview.src = reader.result;
+    els.profilePreview.hidden = false;
+    els.profileForm.dataset.avatarUrl = reader.result;
+  });
+  reader.readAsDataURL(file);
+});
+
+els.profileFromGiphy.addEventListener("click", (e) => {
+  e.preventDefault();
+  els.giphySearch.showModal();
+});
+
+els.closeGiphy.addEventListener("click", () => els.giphySearch.close());
+
+let giphySearchTimer;
+els.giphySearchInput.addEventListener("input", () => {
+  window.clearTimeout(giphySearchTimer);
+  giphySearchTimer = window.setTimeout(() => {
+    searchGiphy(els.giphySearchInput.value.trim());
+  }, 300);
+});
+
+els.profileForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  els.profileError.hidden = true;
+  const name = els.profileInputName.value.trim();
+  if (!name) {
+    els.profileError.textContent = "Name is required";
+    els.profileError.hidden = false;
+    return;
+  }
+
+  const avatarUrl = els.profileForm.dataset.avatarUrl || "";
+  const frame = els.profileForm.dataset.frame || "glow";
+  const nameAnimation = els.profileNameAnimation.value;
+  const glowColor = els.profileGlowColor.value;
+
+  try {
+    await updateProfile(name, {
+      avatar: avatarUrl,
+      frame,
+      nameAnimation,
+      glowColor,
+    });
+    els.profileEditor.close();
+  } catch (err) {
+    els.profileError.textContent = err.message;
+    els.profileError.hidden = false;
+  }
+});
+
 renderCategorySelect();
 
 async function syncRemoteData() {
@@ -677,3 +903,13 @@ loadPosts().catch((err) => {
   els.emptyState.querySelector("h3").textContent = "Server unavailable";
   els.emptyState.querySelector("p").textContent = err.message;
 });
+
+// Load current user's profile on app startup
+(async () => {
+  const currentUserName = localStorage.getItem("currentUserName");
+  if (currentUserName) {
+    const profiles = await getProfiles();
+    state.currentProfile = profiles[currentUserName];
+    renderProfileButton();
+  }
+})();

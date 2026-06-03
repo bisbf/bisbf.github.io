@@ -830,3 +830,198 @@ select:focus {
     grid-template-columns: 1fr;
   }
 }
+
+/* Profile Styles */
+.profile-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border: 1px solid var(--hot);
+  border-radius: 20px;
+  padding: 6px 12px 6px 6px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.profile-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(255, 0, 212, 0.5);
+}
+
+.profile-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--hot);
+}
+
+.profile-name {
+  animation-duration: 2s;
+  animation-iteration-count: infinite;
+}
+
+.animation-glow {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animation-rainbow {
+  animation: rainbow-cycle 3s linear infinite;
+  background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.animation-wave {
+  animation: wave-text 1s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { text-shadow: 0 0 5px currentColor; }
+  50% { text-shadow: 0 0 15px currentColor; }
+}
+
+@keyframes rainbow-cycle {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+@keyframes wave-text {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* Profile Editor Modal */
+#profileEditor {
+  width: 90%;
+  max-width: 500px;
+}
+
+.profile-avatar-options {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.profile-avatar-options button {
+  flex: 1;
+}
+
+.profile-avatar-options input {
+  flex: 1;
+}
+
+.profile-preview {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-top: 8px;
+  border: 2px solid var(--accent-2);
+}
+
+.profile-frames {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.frame-option {
+  padding: 8px 12px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 16px;
+}
+
+.frame-option:hover {
+  border-color: var(--accent-2);
+}
+
+.frame-option.selected {
+  border-color: var(--hot);
+  background: var(--accent-2);
+  box-shadow: 0 0 10px var(--accent-2);
+}
+
+/* Giphy Search Modal */
+#giphySearch {
+  width: 90%;
+  max-width: 600px;
+}
+
+#giphySearchInput {
+  width: 100%;
+  padding: 12px;
+  margin: 16px 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.giphy-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.giphy-result {
+  aspect-ratio: 1;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--panel);
+}
+
+.giphy-result:hover {
+  border-color: var(--accent-2);
+  transform: scale(1.05);
+}
+
+.giphy-result img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Notification Toast */
+.notification-toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: var(--text);
+  padding: 16px 24px;
+  border-radius: 8px;
+  border: 1px solid var(--hot);
+  box-shadow: var(--shadow);
+  animation: slide-up 0.3s ease-out;
+  z-index: 1000;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

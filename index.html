@@ -26,6 +26,10 @@
           <span aria-hidden="true">Search</span>
           <input id="searchInput" type="search" placeholder="Search" autocomplete="off" />
         </label>
+        <button class="profile-button" id="profileButton" type="button" title="Your profile" hidden>
+          <img class="profile-avatar" id="profileAvatar" alt="Your profile" />
+          <span class="profile-name" id="profileName"></span>
+        </button>
       </div>
     </nav>
 
@@ -132,6 +136,73 @@
       </form>
     </dialog>
 
+    <dialog id="profileEditor" class="modal">
+      <form method="dialog" class="modal-body" id="profileForm">
+        <div class="modal-header">
+          <h2>Your Profile</h2>
+          <button class="icon-button" value="cancel" aria-label="Close" type="button" id="closeProfile">x</button>
+        </div>
+
+        <label>
+          <span>Name</span>
+          <input id="profileInputName" name="profileName" maxlength="60" placeholder="Your name" />
+        </label>
+
+        <label>
+          <span>Avatar</span>
+          <div class="profile-avatar-options">
+            <button type="button" class="secondary-button" id="profileFromGiphy">Search Giphy</button>
+            <input id="profileImageUpload" name="profileImage" type="file" accept="image/*" />
+          </div>
+          <img id="profilePreview" class="image-preview profile-preview" alt="" hidden />
+        </label>
+
+        <label>
+          <span>Profile Frame</span>
+          <div class="profile-frames">
+            <button type="button" class="frame-option" data-frame="glow" title="Glowy">✨</button>
+            <button type="button" class="frame-option" data-frame="diamond" title="Diamond">💎</button>
+            <button type="button" class="frame-option" data-frame="fire" title="Fire">🔥</button>
+            <button type="button" class="frame-option" data-frame="star" title="Star">⭐</button>
+          </div>
+        </label>
+
+        <label>
+          <span>Name Animation</span>
+          <select id="profileNameAnimation">
+            <option value="none">None</option>
+            <option value="glow">Glowing</option>
+            <option value="rainbow">Rainbow</option>
+            <option value="wave">Wave</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Glow Color</span>
+          <input id="profileGlowColor" type="color" value="#ff00ff" />
+        </label>
+
+        <p class="error" id="profileError" hidden></p>
+        <div class="modal-actions">
+          <button class="secondary-button" value="cancel" type="button" id="cancelProfile">Cancel</button>
+          <button class="primary-button" type="submit">Save Profile</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="giphySearch" class="modal">
+      <div class="modal-body">
+        <div class="modal-header">
+          <h2>Search Giphy</h2>
+          <button class="icon-button" value="cancel" aria-label="Close" type="button" id="closeGiphy">x</button>
+        </div>
+        <input id="giphySearchInput" type="text" placeholder="Search for GIFs..." maxlength="100" />
+        <div id="giphyResults" class="giphy-results"></div>
+      </div>
+    </dialog>
+
+    <div id="notificationToast" class="notification-toast" hidden>
+      <span id="notificationMessage"></span>
+    </div>
+
     <script src="app.js"></script>
-  </body>
-</html>
