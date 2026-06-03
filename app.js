@@ -166,10 +166,17 @@ async function saveRemoteStorage(data) {
     return;
   }
 
-  await fetchJson(REMOTE_DB_URL, {
-    method: "PUT",
-    body: JSON.stringify(data),
-  });
+  try {
+    await fetchJson(REMOTE_DB_URL, {
+      method: "PUT",
+      body: JSON.stringify(data),
+      allowNotFound: true,
+    });
+    console.log("Remote sync saved successfully");
+  } catch (err) {
+    console.error("Failed to save to Firebase:", err.message);
+    console.warn("Saving to localStorage only. Check Firebase rules and URL.");
+  }
   saveLocalStorage(data);
 }
 
