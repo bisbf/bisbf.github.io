@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BISBF</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-hero">
+      <div class="brand-lockup">
+        <div>
+          <h1>BISBF</h1>
+        </div>
+      </div>
+    </header>
+
+    <nav class="nav-bar" aria-label="Primary">
+      <div class="nav-inner">
+        <button class="nav-item active" type="button">Forums</button>
+        <button class="nav-item" type="button">Members</button>
+        <button class="nav-item" type="button">Rules</button>
+        <button class="nav-item" type="button">Updates</button>
+        <div class="nav-spacer"></div>
+        <label class="nav-search">
+          <span aria-hidden="true">Search</span>
+          <input id="searchInput" type="search" placeholder="Search" autocomplete="off" />
+        </label>
+      </div>
+    </nav>
+
+    <main class="page-shell">
+      <section class="main-column" aria-label="Forum index">
+        <div class="action-row">
+          <button class="new-post-button" id="newPostButton" type="button">New post</button>
+        </div>
+
+        <div id="forumSections" class="forum-sections"></div>
+
+        <section class="thread-browser" id="threadBrowser" aria-label="Threads">
+          <header class="panel-heading">
+            <div>
+              <h2 id="threadBrowserTitle">Latest Threads</h2>
+              <p id="threadBrowserMeta">All visible discussions</p>
+            </div>
+            <span id="postCount">0 threads</span>
+          </header>
+          <div id="postList" class="thread-list"></div>
+          <div id="emptyState" class="empty-state" hidden>
+            <h3>No threads yet</h3>
+            <p>Start a discussion.</p>
+            <button class="secondary-button" type="button" data-open-composer>Write a post</button>
+          </div>
+        </section>
+
+        <article class="thread-detail" id="postDetail" aria-label="Selected thread">
+          <div class="thread-placeholder">
+            <h2>Select a thread</h2>
+            <p>Replies and full posts open here.</p>
+          </div>
+        </article>
+      </section>
+
+      <aside class="side-column" aria-label="Forum sidebar">
+        <section class="side-panel">
+          <h2>New Threads</h2>
+          <div id="newThreads" class="new-thread-list"></div>
+        </section>
+
+        <section class="side-panel">
+          <h2>Forum statistics</h2>
+          <dl class="stats">
+            <div>
+              <dt>Threads:</dt>
+              <dd id="statThreads">0</dd>
+            </div>
+            <div>
+              <dt>Replies:</dt>
+              <dd id="statReplies">0</dd>
+            </div>
+            <div>
+              <dt>Categories:</dt>
+              <dd>5</dd>
+            </div>
+            <div>
+              <dt>Storage:</dt>
+              <dd>forum.db</dd>
+            </div>
+          </dl>
+        </section>
+      </aside>
+    </main>
+
+    <dialog id="composer" class="modal">
+      <form method="dialog" class="modal-body" id="postForm">
+        <div class="modal-header">
+          <h2>New Post</h2>
+          <button class="icon-button" value="cancel" aria-label="Close" type="button" id="closeComposer">x</button>
+        </div>
+
+        <label>
+          <span>Your name</span>
+          <input name="author" maxlength="60" placeholder="Name or nickname" autocomplete="name" />
+        </label>
+
+        <label>
+          <span>Category</span>
+          <select name="category" id="categorySelect"></select>
+        </label>
+
+        <label>
+          <span>Title</span>
+          <input name="title" maxlength="120" required placeholder="What is this about?" />
+        </label>
+
+        <label>
+          <span>Post</span>
+          <textarea name="body" rows="8" maxlength="5000" placeholder="Write the full post"></textarea>
+        </label>
+
+        <label>
+          <span>Picture</span>
+          <input name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+        </label>
+        <img id="postImagePreview" class="image-preview" alt="" hidden />
+
+        <p class="error" id="postError" hidden></p>
+        <div class="modal-actions">
+          <button class="secondary-button" value="cancel" type="button" id="cancelComposer">Cancel</button>
+          <button class="primary-button" type="submit">Publish</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
