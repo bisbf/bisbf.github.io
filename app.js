@@ -289,19 +289,40 @@ async function updateProfile(name, updates) {
 }
 
 function renderProfileButton() {
-  if (!state.currentProfile || !state.currentProfile.avatar) {
+  if (!state.currentProfile) {
     els.profileButton.hidden = true;
     return;
   }
   els.profileButton.hidden = false;
-  els.profileAvatar.src = state.currentProfile.avatar;
+  
+  // Use avatar if set, otherwise create default avatar with initials
+  if (state.currentProfile.avatar) {
+    els.profileAvatar.src = state.currentProfile.avatar;
+  } else {
+    // Create default avatar with initials
+    const initials = (state.currentProfile.name || "?").substring(0, 2).toUpperCase();
+    const canvas = document.createElement("canvas");
+    canvas.width = 28;
+    canvas.height = 28;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#9b27ff";
+    ctx.fillRect(0, 0, 28, 28);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 12px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(initials, 14, 14);
+    els.profileAvatar.src = canvas.toDataURL();
+  }
+  
   els.profileName.textContent = state.currentProfile.name;
   applyProfileFrame();
 }
 
 function applyProfileFrame() {
   if (!state.currentProfile) return;
-  const { frame, nameAnimation, glowColor } = state.currentProfile;
+  const nameAnimation = state.currentProfile.nameAnimation || "glow";
+  const glowColor = state.currentProfile.glowColor || "#ff00ff";
   els.profileName.className = `profile-name animation-${nameAnimation}`;
   els.profileName.style.textShadow = `0 0 10px ${glowColor}, 0 0 20px ${glowColor}`;
 }
@@ -408,6 +429,10 @@ async function createPost(body) {
   if (author !== "Anonymous") {
     localStorage.setItem("currentUserName", author);
     await getOrCreateProfile(author);
+    // Load and display the profile immediately
+    const profiles = await getProfiles();
+    state.currentProfile = profiles[author];
+    renderProfileButton();
   }
   
   return { post, comments: [] };
