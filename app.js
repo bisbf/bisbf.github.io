@@ -188,6 +188,28 @@ function parseRequestBody(body) {
   }
 }
 
+function clean_text(value, max_len) {
+  if (typeof value !== "string") return "";
+  return value.trim().replace(/\s+/g, " ").slice(0, max_len);
+}
+
+function clean_body(value, max_len) {
+  if (typeof value !== "string") return "";
+  let text = value.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+  text = text.replace(/\n{4,}/g, "\n\n\n");
+  return text.slice(0, max_len);
+}
+
+function clean_image(value) {
+  if (typeof value !== "string" || !value) return "";
+  const MAX_IMAGE_CHARS = 2_800_000;
+  if (value.length > MAX_IMAGE_CHARS) return "";
+  if (!value.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/)) {
+    return "";
+  }
+  return value;
+}
+
 function getPostById(postId, storage) {
   const post = storage.posts.find((item) => item.id === postId);
   if (!post) {
