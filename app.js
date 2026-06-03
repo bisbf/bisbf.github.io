@@ -131,9 +131,23 @@ async function api(path, options = {}) {
     headers: { "Content-Type": "application/json" },
     ...options,
   });
-  const data = await response.json();
+
+  const contentType = response.headers.get("Content-Type") || "";
+  const text = await response.text();
+  let data = {};
+
+  if (contentType.includes("application/json")) {
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch (err) {
+      throw new Error("Invalid JSON response from server");
+    }
+  } else if (text.trim()) {
+    throw new Error("Unexpected server response: " + text.slice(0, 240));
+  }
+
   if (!response.ok) {
-    throw new Error(data.error || "Request failed");
+    throw new Error(data.error || `Request failed with status ${response.status}`);
   }
   return data;
 }
