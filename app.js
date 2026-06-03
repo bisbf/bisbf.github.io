@@ -31,6 +31,11 @@ const categories = [
 
 const STORAGE_KEY = "bisbfforum-data";
 
+// Set this to your Firebase Realtime Database URL ending with .json for cross-device sync.
+// Example: https://your-project-id-default-rtdb.firebaseio.com/bisbf-forum.json
+const REMOTE_DB_URL = "";
+const REMOTE_SYNC_ENABLED = REMOTE_DB_URL.trim().length > 0;
+
 const state = {
   posts: [],
   selectedId: null,
@@ -93,7 +98,7 @@ function avatarText(name) {
   return (name || "A").trim().charAt(0).toUpperCase();
 }
 
-function loadStorage() {
+function loadLocalStorage() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) {
     return { posts: [], comments: [], nextPostId: 1, nextCommentId: 1 };
@@ -111,8 +116,60 @@ function loadStorage() {
   }
 }
 
-function saveStorage(data) {
+function saveLocalStorage(data) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`Remote sync failed: ${response.status}`);
+  }
+  return text ? JSON.parse(text) : null;
+}
+
+async function loadRemoteStorage() {
+  if (!REMOTE_SYNC_ENABLED) {
+    return loadLocalStorage();
+  }
+  try {
+    const data = await fetchJson(REMOTE_DB_URL, { method: "GET" });
+    if (!data || typeof data !== "object") {
+      return { posts: [], comments: [], nextPostId: 1, nextCommentId: 1 };
+    }
+    return {
+      posts: Array.isArray(data.posts) ? data.posts : [],
+      comments: Array.isArray(data.comments) ? data.comments : [],
+      nextPostId: Number(data.nextPostId) || 1,
+      nextCommentId: Number(data.nextCommentId) || 1,
+    };
+  } catch (err) {
+    console.warn("Remote sync failed, using local data", err);
+    return loadLocalStorage();
+  }
+}
+
+async function saveRemoteStorage(data) {
+  if (!REMOTE_SYNC_ENABLED) {
+    saveLocalStorage(data);
+    return;
+  }
+
+  await fetchJson(REMOTE_DB_URL, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+  saveLocalStorage(data);
+}
+
+async function loadStorageData() {
+  const data = await loadRemoteStorage();
+  saveLocalStorage(data);
+  return data;
 }
 
 function parseRequestBody(body) {
@@ -124,8 +181,7 @@ function parseRequestBody(body) {
   }
 }
 
-function getPostById(postId) {
-  const storage = loadStorage();
+function getPostById(postId, storage) {
   const post = storage.posts.find((item) => item.id === postId);
   if (!post) {
     throw new Error("Post not found");
@@ -133,22 +189,22 @@ function getPostById(postId) {
   return post;
 }
 
-function listPosts() {
-  const storage = loadStorage();
+async function listPosts() {
+  const storage = await loadStorageData();
   return storage.posts.slice().sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-function getPostDetail(postId) {
-  const storage = loadStorage();
-  const post = getPostById(postId);
+async function getPostDetail(postId) {
+  const storage = await loadStorageData();
+  const post = getPostById(postId, storage);
   const comments = storage.comments
     .filter((comment) => comment.postId === postId)
     .sort((a, b) => a.createdAt - b.createdAt);
   return { post, comments };
 }
 
-function createLocalPost(body) {
-  const storage = loadStorage();
+async function createPost(body) {
+  const storage = await loadStorageData();
   const title = clean_text(body.title, 120);
   const author = clean_text(body.author, 60) || "Anonymous";
   const category = clean_text(body.category, 64) || "general";
@@ -180,12 +236,12 @@ function createLocalPost(body) {
   };
   storage.posts.push(post);
   storage.nextPostId += 1;
-  saveStorage(storage);
+  await saveRemoteStorage(storage);
   return { post, comments: [] };
 }
 
-function createLocalComment(postId, body) {
-  const storage = loadStorage();
+async function createComment(postId, body) {
+  const storage = await loadStorageData();
   const author = clean_text(body.author, 60) || "Anonymous";
   const commentBody = clean_body(body.body, 2000);
   const imageData = clean_image(body.imageData);
@@ -215,8 +271,7 @@ function createLocalComment(postId, body) {
   storage.nextCommentId += 1;
   post.updatedAt = createdAt;
   post.commentCount = storage.comments.filter((item) => item.postId === postId).length;
-  saveStorage(storage);
-
+  await saveRemoteStorage(storage);
   return getPostDetail(postId);
 }
 
@@ -260,21 +315,21 @@ async function api(path, options = {}) {
   const body = parseRequestBody(options.body);
 
   if (path === "/api/posts" && method === "GET") {
-    return { posts: listPosts() };
+    return { posts: await listPosts() };
   }
 
   const postIdMatch = path.match(/^\/api\/posts\/(\d+)$/);
   if (postIdMatch && method === "GET") {
-    return getPostDetail(Number(postIdMatch[1]));
+    return await getPostDetail(Number(postIdMatch[1]));
   }
 
   const commentMatch = path.match(/^\/api\/posts\/(\d+)\/comments$/);
   if (commentMatch && method === "POST") {
-    return createLocalComment(Number(commentMatch[1]), body);
+    return await createComment(Number(commentMatch[1]), body);
   }
 
   if (path === "/api/posts" && method === "POST") {
-    return createLocalPost(body);
+    return await createPost(body);
   }
 
   throw new Error("Unsupported API route");
@@ -559,6 +614,26 @@ els.postForm.addEventListener("submit", async (event) => {
 });
 
 renderCategorySelect();
+
+async function syncRemoteData() {
+  if (!REMOTE_SYNC_ENABLED) return;
+
+  try {
+    await loadPosts();
+    if (state.selectedId) {
+      const data = await api(`/api/posts/${state.selectedId}`);
+      renderPostDetail(data.post, data.comments);
+    }
+  } catch {
+    // keep the current UI state if remote refresh fails
+  }
+}
+
+if (REMOTE_SYNC_ENABLED) {
+  window.addEventListener("focus", syncRemoteData);
+  window.setInterval(syncRemoteData, 15000);
+}
+
 loadPosts().catch((err) => {
   els.forumSections.innerHTML = "";
   els.postList.innerHTML = "";
