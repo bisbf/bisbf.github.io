@@ -168,7 +168,7 @@ async function loadRemoteStorage() {
   try {
     const data = await fetchJson(REMOTE_DB_URL, { method: "GET", allowNotFound: true });
     if (!data || typeof data !== "object") {
-      return { posts: [], comments: [], nextPostId: 1, nextCommentId: 1 };
+      return loadLocalStorage();
     }
     return {
       posts: Array.isArray(data.posts) ? data.posts : [],

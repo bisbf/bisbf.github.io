@@ -87,6 +87,14 @@ button {
   text-transform: lowercase;
 }
 
+.site-logo {
+  max-height: 100px;
+  max-width: 500px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
 .brand-lockup p {
   margin: 5px 0 0;
   color: var(--muted);
