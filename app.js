@@ -29,6 +29,8 @@ const categories = [
   },
 ];
 
+const STORAGE_KEY = "bisbfforum-data";
+
 const state = {
   posts: [],
   selectedId: null,
@@ -91,6 +93,133 @@ function avatarText(name) {
   return (name || "A").trim().charAt(0).toUpperCase();
 }
 
+function loadStorage() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    return { posts: [], comments: [], nextPostId: 1, nextCommentId: 1 };
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      posts: Array.isArray(parsed.posts) ? parsed.posts : [],
+      comments: Array.isArray(parsed.comments) ? parsed.comments : [],
+      nextPostId: Number(parsed.nextPostId) || 1,
+      nextCommentId: Number(parsed.nextCommentId) || 1,
+    };
+  } catch {
+    return { posts: [], comments: [], nextPostId: 1, nextCommentId: 1 };
+  }
+}
+
+function saveStorage(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function parseRequestBody(body) {
+  if (!body) return {};
+  try {
+    return JSON.parse(body);
+  } catch {
+    throw new Error("Invalid request body");
+  }
+}
+
+function getPostById(postId) {
+  const storage = loadStorage();
+  const post = storage.posts.find((item) => item.id === postId);
+  if (!post) {
+    throw new Error("Post not found");
+  }
+  return post;
+}
+
+function listPosts() {
+  const storage = loadStorage();
+  return storage.posts.slice().sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+function getPostDetail(postId) {
+  const storage = loadStorage();
+  const post = getPostById(postId);
+  const comments = storage.comments
+    .filter((comment) => comment.postId === postId)
+    .sort((a, b) => a.createdAt - b.createdAt);
+  return { post, comments };
+}
+
+function createLocalPost(body) {
+  const storage = loadStorage();
+  const title = clean_text(body.title, 120);
+  const author = clean_text(body.author, 60) || "Anonymous";
+  const category = clean_text(body.category, 64) || "general";
+  const postBody = clean_body(body.body, 5000);
+  const imageData = clean_image(body.imageData);
+
+  const normalizedCategory = categories.some((item) => item.id === category) ? category : "general";
+  if (title.length < 3) {
+    throw new Error("Title must be at least 3 characters");
+  }
+  if (postBody.length < 3 && !imageData) {
+    throw new Error("Post must include text or a picture");
+  }
+  if (body.imageData && !imageData) {
+    throw new Error("Picture must be PNG, JPEG, WebP, or GIF under about 2 MB");
+  }
+
+  const createdAt = Date.now();
+  const post = {
+    id: storage.nextPostId,
+    title,
+    body: postBody,
+    author,
+    category: normalizedCategory,
+    imageData,
+    createdAt,
+    updatedAt: createdAt,
+    commentCount: 0,
+  };
+  storage.posts.push(post);
+  storage.nextPostId += 1;
+  saveStorage(storage);
+  return { post, comments: [] };
+}
+
+function createLocalComment(postId, body) {
+  const storage = loadStorage();
+  const author = clean_text(body.author, 60) || "Anonymous";
+  const commentBody = clean_body(body.body, 2000);
+  const imageData = clean_image(body.imageData);
+
+  if (commentBody.length < 2 && !imageData) {
+    throw new Error("Reply must include text or a picture");
+  }
+  if (body.imageData && !imageData) {
+    throw new Error("Picture must be PNG, JPEG, WebP, or GIF under about 2 MB");
+  }
+
+  const post = storage.posts.find((item) => item.id === postId);
+  if (!post) {
+    throw new Error("Post not found");
+  }
+
+  const createdAt = Date.now();
+  const comment = {
+    id: storage.nextCommentId,
+    postId,
+    body: commentBody,
+    author,
+    imageData,
+    createdAt,
+  };
+  storage.comments.push(comment);
+  storage.nextCommentId += 1;
+  post.updatedAt = createdAt;
+  post.commentCount = storage.comments.filter((item) => item.postId === postId).length;
+  saveStorage(storage);
+
+  return getPostDetail(postId);
+}
+
 function filteredPosts() {
   const query = state.search.toLowerCase();
   return state.posts.filter((post) => {
@@ -127,29 +256,28 @@ function renderImage(src, alt = "Uploaded picture") {
 }
 
 async function api(path, options = {}) {
-  const response = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
+  const method = (options.method || "GET").toUpperCase();
+  const body = parseRequestBody(options.body);
 
-  const contentType = response.headers.get("Content-Type") || "";
-  const text = await response.text();
-  let data = {};
-
-  if (contentType.includes("application/json")) {
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch (err) {
-      throw new Error("Invalid JSON response from server");
-    }
-  } else if (text.trim()) {
-    throw new Error("Unexpected server response: " + text.slice(0, 240));
+  if (path === "/api/posts" && method === "GET") {
+    return { posts: listPosts() };
   }
 
-  if (!response.ok) {
-    throw new Error(data.error || `Request failed with status ${response.status}`);
+  const postIdMatch = path.match(/^\/api\/posts\/(\d+)$/);
+  if (postIdMatch && method === "GET") {
+    return getPostDetail(Number(postIdMatch[1]));
   }
-  return data;
+
+  const commentMatch = path.match(/^\/api\/posts\/(\d+)\/comments$/);
+  if (commentMatch && method === "POST") {
+    return createLocalComment(Number(commentMatch[1]), body);
+  }
+
+  if (path === "/api/posts" && method === "POST") {
+    return createLocalPost(body);
+  }
+
+  throw new Error("Unsupported API route");
 }
 
 async function loadPosts() {
