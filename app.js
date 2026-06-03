@@ -31,9 +31,12 @@ const categories = [
 
 const STORAGE_KEY = "bisbfforum-data";
 
-// Set this to your Firebase Realtime Database URL ending with .json for cross-device sync.
-// Example: https://your-project-id-default-rtdb.firebaseio.com/bisbf-forum.json
-const REMOTE_DB_URL = "";
+// Configure remote sync for cross-device forums.
+// 1) Create a Firebase Realtime Database.
+// 2) Use the database URL with a path ending in .json.
+// 3) Set the rules to allow public read/write for this demo.
+// Exact URL for this project:
+const REMOTE_DB_URL = "https://bisbf-e75b1-default-rtdb.firebaseio.com/bisbf-forum.json";
 const REMOTE_SYNC_ENABLED = REMOTE_DB_URL.trim().length > 0;
 
 const state = {
@@ -121,12 +124,16 @@ function saveLocalStorage(data) {
 }
 
 async function fetchJson(url, options = {}) {
+  const allowNotFound = options.allowNotFound || false;
   const response = await fetch(url, {
     headers: { "Content-Type": "application/json" },
     ...options,
   });
   const text = await response.text();
   if (!response.ok) {
+    if (allowNotFound && response.status === 404) {
+      return null;
+    }
     throw new Error(`Remote sync failed: ${response.status}`);
   }
   return text ? JSON.parse(text) : null;
@@ -137,7 +144,7 @@ async function loadRemoteStorage() {
     return loadLocalStorage();
   }
   try {
-    const data = await fetchJson(REMOTE_DB_URL, { method: "GET" });
+    const data = await fetchJson(REMOTE_DB_URL, { method: "GET", allowNotFound: true });
     if (!data || typeof data !== "object") {
       return { posts: [], comments: [], nextPostId: 1, nextCommentId: 1 };
     }
